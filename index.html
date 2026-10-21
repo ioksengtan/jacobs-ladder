@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>雅各的梯子翻轉模擬器</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,"Noto Sans TC",sans-serif;background:#f3efe8;color:#3a2e24;overflow-x:hidden}
+main{max-width:480px;margin:0 auto;padding:14px}
+h1{font-size:1.3rem;margin:.2em 0}
+p{margin:.3em 0 .8em;font-size:.9rem;line-height:1.5;color:#6b5a4a}
+#stage{perspective:900px;display:flex;justify-content:center;padding:16px 0 24px;touch-action:none;user-select:none}
+#ladder{display:flex;flex-direction:column;gap:3px}
+.blk{position:relative;transform-style:preserve-3d;transition:transform .42s cubic-bezier(.5,.05,.4,1.2);transform-origin:50% 50%}
+.blk.drag{transition:none}
+.face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;border-radius:3px;
+ box-shadow:inset 0 0 0 2px rgba(80,50,20,.35),0 2px 3px rgba(0,0,0,.25);background-repeat:no-repeat}
+.back{transform:rotateX(180deg)}
+.blk:first-child .front::after{content:"↑ 拉";position:absolute;top:-1.6em;left:50%;transform:translateX(-50%);font-size:.8rem;color:#a0602a}
+.panel{background:#fff;border-radius:12px;padding:12px;margin-top:10px;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+label{display:block;font-size:.9rem;margin:.5em 0}
+input[type=range]{width:100%}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+button,.up{flex:1;min-width:120px;padding:10px;border:1px solid #c9b8a4;border-radius:8px;background:#fff;font-size:.9rem;text-align:center;cursor:pointer}
+.up input{display:none}
+#status{text-align:center;font-weight:bold}
+</style></head><body><main>
+<h1>雅各的梯子翻轉模擬器</h1>
+<p>按住最上面一塊木塊往上拖，放開後木塊會一塊接一塊翻面，畫面從夏天換成秋天。再往下拖可以翻回來。</p>
+<div id="status">目前：A（夏天）</div>
+<div id="stage"><div id="ladder"></div></div>
+<div class="panel">
+<label>木塊數量：<b id="nv">6</b><input id="n" type="range" min="3" max="12" value="6"></label>
+<label>每塊間隔時間：<b id="dv">110</b> 毫秒<input id="d" type="range" min="40" max="300" value="110"></label>
+<div class="row">
+<button id="auto">自動翻轉</button>
+<label class="up">換 A 圖<input id="fa" type="file" accept="image/*"></label>
+<label class="up">換 B 圖<input id="fb" type="file" accept="image/*"></label>
+<button id="reset">還原範例圖</button>
+</div></div>
+<p>這是運動學近似的外觀模擬，不是真實的剛體物理，也不模擬布帶。</p>
+</main>
+<script>
+const L=document.getElementById('ladder'),st=document.getElementById('status');
+let N=6,delay=110,state='A',busy=false,imgA,imgB,size;
+function scene(autumn){const c=document.createElement('canvas');c.width=400;c.height=1200;const g=c.getContext('2d');
+ let s=g.createLinearGradient(0,0,0,700);s.addColorStop(0,autumn?'#f6c27a':'#8fd3f4');s.addColorStop(1,autumn?'#fbe3b0':'#d8f1fb');g.fillStyle=s;g.fillRect(0,0,400,1200);
+ g.fillStyle=autumn?'#fff0c8':'#fff7a8';g.beginPath();g.arc(310,150,60,0,7);g.fill();
+ g.fillStyle=autumn?'#c9873a':'#5fae4e';g.fillRect(0,780,400,420);
+ g.fillStyle=autumn?'#a8662b':'#4a9640';g.beginPath();g.moveTo(0,800);g.quadraticCurveTo(200,700,400,820);g.lineTo(400,1200);g.lineTo(0,1200);g.fill();
+ g.fillStyle='#6b4423';g.fillRect(180,500,40,320);
+ const leaf=autumn?['#e8651e','#f2a01f','#d9431c','#f5c542']:['#3e8e3a','#56a948','#2f7a31','#6cc05a'];
+ let r=7;const rnd=()=>(r=(r*9301+49297)%233280)/233280;
+ for(let i=0;i<260;i++){g.fillStyle=leaf[i%4];g.beginPath();g.arc(200+(rnd()-.5)*300,420+(rnd()-.5)*300,18+rnd()*16,0,7);g.fill();}
+ if(autumn)for(let i=0;i<40;i++){g.fillStyle=leaf[i%4];g.beginPath();g.ellipse(rnd()*400,820+rnd()*360,9,5,rnd()*3,0,7);g.fill();}
+ return c.toDataURL('image/jpeg',.85);}
+function defaults(){imgA=scene(false);imgB=scene(true);}
+function build(){size=Math.min(Math.floor((Math.min(innerWidth,480)-60)/1),Math.floor(560/N),160);size=Math.max(28,Math.min(size,Math.floor(560/N)));
+ L.innerHTML='';const H=size*N+3*(N-1);
+ for(let i=0;i<N;i++){const b=document.createElement('div');b.className='blk';b.style.width=b.style.height=size+'px';
+  const y=-(i*(size+3));
+  for(const [cls,im] of [['front',imgA],['back',imgB]]){const f=document.createElement('div');f.className='face '+cls;
+   f.style.backgroundImage=`url(${im})`;f.style.backgroundSize=`${size}px ${H}px`;f.style.backgroundPosition=`0 ${y}px`;b.appendChild(f);}
+  b.style.transform=`rotateX(${state==='B'?180:0}deg)`;L.appendChild(b);}
+ st.textContent='目前：'+(state==='A'?'A（夏天）':'B（秋天）');}
+function cascade(to){if(busy)return;busy=true;const bl=[...L.children];
+ bl.forEach((b,i)=>setTimeout(()=>{b.classList.remove('drag');b.style.transform=`rotateX(${to==='B'?180:0}deg)`;},i*delay));
+ setTimeout(()=>{state=to;busy=false;build();window.__done=(window.__done||0)+1;},(N-1)*delay+450);}
+// drag
+let sy=null;
+const stage=document.getElementById('stage');
+stage.addEventListener('pointerdown',e=>{if(busy)return;const t=L.children[0];if(!t)return;const r=t.getBoundingClientRect();
+ if(e.clientY>r.bottom+size*.5)return;sy=e.clientY;t.classList.add('drag');stage.setPointerCapture(e.pointerId);});
+stage.addEventListener('pointermove',e=>{if(sy==null)return;const dy=sy-e.clientY,t=L.children[0];
+ const base=state==='B'?180:0,amt=Math.max(-1,Math.min(1,dy/(size*1.2)));
+ const a=state==='A'?Math.max(0,amt)*120:180+Math.min(0,amt)*120;t.style.transform=`rotateX(${a}deg)`;});
+function end(e){if(sy==null)return;const dy=sy-e.clientY;sy=null;const t=L.children[0];t.classList.remove('drag');
+ if(state==='A'&&dy>size*.4)cascade('B');else if(state==='B'&&dy<-size*.4)cascade('A');else t.style.transform=`rotateX(${state==='B'?180:0}deg)`;}
+stage.addEventListener('pointerup',end);stage.addEventListener('pointercancel',end);
+const n=document.getElementById('n'),d=document.getElementById('d');
+n.oninput=()=>{N=+n.value;document.getElementById('nv').textContent=N;build();};
+d.oninput=()=>{delay=+d.value;document.getElementById('dv').textContent=delay;};
+document.getElementById('auto').onclick=()=>cascade(state==='A'?'B':'A');
+document.getElementById('reset').onclick=()=>{defaults();build();};
+function load(inp,set){inp.onchange=()=>{const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{set(r.result);build();};r.readAsDataURL(f);};}
+load(document.getElementById('fa'),v=>imgA=v);load(document.getElementById('fb'),v=>imgB=v);
+addEventListener('resize',build);
+window.__state=()=>state;
+defaults();build();
+</script></body></html>
