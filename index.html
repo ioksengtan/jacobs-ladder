@@ -10,7 +10,7 @@ h1{font-size:1.3rem;margin:.2em 0}
 p{margin:.3em 0 .8em;font-size:.9rem;line-height:1.5;color:#6b5a4a}
 #stage{perspective:900px;display:flex;justify-content:center;padding:16px 0 24px;touch-action:none;user-select:none}
 #ladder{display:flex;flex-direction:column;gap:3px}
-.blk{position:relative;transform-style:preserve-3d;transition:transform .42s cubic-bezier(.5,.05,.4,1.2);transform-origin:50% 50%}
+.blk{position:relative;transform-style:preserve-3d;transition:transform var(--dur,840ms) cubic-bezier(.5,.05,.4,1.2);transform-origin:50% 50%}
 .blk.drag{transition:none}
 .face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;border-radius:3px;
  box-shadow:inset 0 0 0 2px rgba(80,50,20,.35),0 2px 3px rgba(0,0,0,.25);background-repeat:no-repeat}
@@ -30,7 +30,8 @@ button,.up{flex:1;min-width:120px;padding:10px;border:1px solid #c9b8a4;border-r
 <div id="stage"><div id="ladder"></div></div>
 <div class="panel">
 <label>木塊數量：<b id="nv">6</b><input id="n" type="range" min="3" max="12" value="6"></label>
-<label>每塊間隔時間：<b id="dv">110</b> 毫秒<input id="d" type="range" min="40" max="300" value="110"></label>
+<label>每塊間隔時間：<b id="dv">220</b> 毫秒<input id="d" type="range" min="40" max="600" value="220"></label>
+<label>每塊翻轉時間：<b id="tv">840</b> 毫秒<input id="t" type="range" min="300" max="2000" step="20" value="840"></label>
 <div class="row">
 <button id="auto">自動翻轉</button>
 <label class="up">換 A 圖<input id="fa" type="file" accept="image/*"></label>
@@ -41,7 +42,7 @@ button,.up{flex:1;min-width:120px;padding:10px;border:1px solid #c9b8a4;border-r
 </main>
 <script>
 const L=document.getElementById('ladder'),st=document.getElementById('status');
-let N=6,delay=110,state='A',busy=false,imgA,imgB,size;
+let N=6,delay=220,dur=840,state='A',busy=false,imgA,imgB,size;
 function scene(autumn){const c=document.createElement('canvas');c.width=400;c.height=1200;const g=c.getContext('2d');
  let s=g.createLinearGradient(0,0,0,700);s.addColorStop(0,autumn?'#f6c27a':'#8fd3f4');s.addColorStop(1,autumn?'#fbe3b0':'#d8f1fb');g.fillStyle=s;g.fillRect(0,0,400,1200);
  g.fillStyle=autumn?'#fff0c8':'#fff7a8';g.beginPath();g.arc(310,150,60,0,7);g.fill();
@@ -64,7 +65,7 @@ function build(){size=Math.min(Math.floor((Math.min(innerWidth,480)-60)/1),Math.
  st.textContent='目前：'+(state==='A'?'A（夏天）':'B（秋天）');}
 function cascade(to){if(busy)return;busy=true;const bl=[...L.children];
  bl.forEach((b,i)=>setTimeout(()=>{b.classList.remove('drag');b.style.transform=`rotateX(${to==='B'?180:0}deg)`;},i*delay));
- setTimeout(()=>{state=to;busy=false;build();window.__done=(window.__done||0)+1;},(N-1)*delay+450);}
+ setTimeout(()=>{state=to;busy=false;build();window.__done=(window.__done||0)+1;},(N-1)*delay+dur+50);}
 // drag
 let sy=null;
 const stage=document.getElementById('stage');
@@ -79,6 +80,7 @@ stage.addEventListener('pointerup',end);stage.addEventListener('pointercancel',e
 const n=document.getElementById('n'),d=document.getElementById('d');
 n.oninput=()=>{N=+n.value;document.getElementById('nv').textContent=N;build();};
 d.oninput=()=>{delay=+d.value;document.getElementById('dv').textContent=delay;};
+const t=document.getElementById('t');t.oninput=()=>{dur=+t.value;document.getElementById('tv').textContent=dur;document.documentElement.style.setProperty('--dur',dur+'ms');};
 document.getElementById('auto').onclick=()=>cascade(state==='A'?'B':'A');
 document.getElementById('reset').onclick=()=>{defaults();build();};
 function load(inp,set){inp.onchange=()=>{const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{set(r.result);build();};r.readAsDataURL(f);};}
